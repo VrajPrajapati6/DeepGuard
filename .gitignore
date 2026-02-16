@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Dataset files (too large for git)
+backend_engine/data/
+!backend_engine/data/.gitkeep
+
+# Model files
+backend_engine/models/*.pth
+backend_engine/models/*.onnx
+!backend_engine/models/.gitkeep
+
+# Node
+frontend_app/node_modules/
+frontend_app/dist/
+frontend_app/build/
+frontend_app/.cache/
+frontend_app/out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

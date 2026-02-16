@@ -1,0 +1,68 @@
+{
+  "name": "deepguard-frontend",
+  "version": "1.0.0",
+  "description": "DeepGuard - Real-time Deepfake Audio Detection Dashboard",
+  "main": "main.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && electron .\"",
+    "package": "electron-builder"
+  },
+  "keywords": [
+    "deepfake",
+    "audio",
+    "detection",
+    "ai",
+    "electron"
+  ],
+  "author": "DeepGuard Team",
+  "license": "MIT",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "socket.io-client": "^4.6.0",
+    "recharts": "^2.5.0",
+    "styled-components": "^6.0.0"
+  },
+  "devDependencies": {
+    "electron": "^24.0.0",
+    "electron-builder": "^24.0.0",
+    "concurrently": "^8.0.0",
+    "wait-on": "^7.0.0"
+  },
+  "build": {
+    "appId": "com.deepguard.app",
+    "productName": "DeepGuard",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "main.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icon.png"
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
