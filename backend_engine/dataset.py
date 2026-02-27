@@ -71,7 +71,7 @@ class ASVspoofDataset(Dataset):
                 audio_filename = parts[1] + '.flac'
                 label_str = parts[4]
                 
-                
+            
                 label = 1 if label_str == 'bonafide' else 0
                 
                 samples.append((audio_filename, label))

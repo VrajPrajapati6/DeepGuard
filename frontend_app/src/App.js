@@ -1,241 +1,380 @@
 /**
  * DeepGuard Main Application
- * Real-time deepfake audio detection dashboard
+ * Premium real-time deepfake audio detection dashboard
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styled from 'styled-components';
-import io from 'socket.io-client';
+import { useWebSocket } from './hooks/useWebSocket';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import ConnectionStatus from './components/ConnectionStatus';
+import StatisticsPanel from './components/StatisticsPanel';
 import TrustGauge from './components/TrustGauge';
 import AudioVisualizer from './components/AudioVisualizer';
 import AlertPanel from './components/AlertPanel';
 
-const BACKEND_URL = 'http://localhost:5000';
+const BACKEND_URL = 'http://localhost:5001';
 
 const AppContainer = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-  color: #ffffff;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  padding: 2rem;
+  background: var(--gradient-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-primary);
+  padding: var(--space-6);
+  
+  @media (max-width: 768px) {
+    padding: var(--space-4);
+  }
 `;
 
 const Header = styled.header`
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: var(--space-8);
+  animation: fadeIn var(--duration-slow) var(--ease-out);
+`;
+
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+`;
+
+const Logo = styled.div`
+  font-size: var(--font-size-5xl);
+  filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5));
 `;
 
 const Title = styled.h1`
-  font-size: 3rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-size: var(--font-size-5xl);
+  font-weight: var(--font-weight-extrabold);
+  background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
-`;
-
-const Subtitle = styled.p`
-  font-size: 1.1rem;
-  color: #a0aec0;
-  font-weight: 300;
-`;
-
-const Dashboard = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  background-clip: text;
+  margin: 0;
+  letter-spacing: var(--letter-spacing-tight);
   
-  @media (max-width: 968px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 768px) {
+    font-size: var(--font-size-4xl);
   }
 `;
 
-const Card = styled.div`
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+const Subtitle = styled.p`
+  font-size: var(--font-size-lg);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
+  margin: 0;
+  letter-spacing: var(--letter-spacing-wide);
 `;
 
-const ControlPanel = styled(Card)`
-  grid-column: 1 / -1;
+const Dashboard = styled.div`
+  max-width: 1600px;
+  margin: 0 auto;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-6);
+`;
+
+const ControlBar = styled.div`
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--color-bg-card);
+  backdrop-filter: blur(var(--blur-lg));
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-xl);
+  flex-wrap: wrap;
+`;
+
+const Controls = styled.div`
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
 `;
 
 const Button = styled.button`
-  padding: 1rem 2rem;
-  font-size: 1rem;
-  font-weight: 600;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--duration-normal) var(--ease-out);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+  position: relative;
+  overflow: hidden;
   
-  ${props => props.primary ? `
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+  ${props => props.$primary ? `
+    background: var(--gradient-primary);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-md);
     
-    &:hover {
+    &:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      box-shadow: var(--shadow-glow-primary);
+    }
+    
+    &:active:not(:disabled) {
+      transform: translateY(0);
     }
   ` : `
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: var(--color-bg-card);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-subtle);
     
-    &:hover {
-      background: rgba(255, 255, 255, 0.15);
+    &:hover:not(:disabled) {
+      background: var(--color-bg-card-hover);
+      border-color: var(--color-border-medium);
     }
   `}
   
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
+    transform: none !important;
   }
 `;
 
-const StatusIndicator = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #a0aec0;
+const KeyboardHint = styled.span`
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  opacity: 0.7;
 `;
 
-const StatusDot = styled.div`
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: ${props => props.connected ? '#48bb78' : '#f56565'};
-  box-shadow: 0 0 10px ${props => props.connected ? '#48bb78' : '#f56565'};
+const StatsSection = styled.div`
+  animation: slideInUp var(--duration-slow) var(--ease-out);
+`;
+
+const GridSection = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: var(--space-6);
+  animation: slideInUp var(--duration-slow) var(--ease-out) 0.1s backwards;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const Card = styled.div`
+  background: var(--color-bg-card);
+  backdrop-filter: blur(var(--blur-lg));
+  border-radius: var(--radius-2xl);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-xl);
+  transition: all var(--duration-normal) var(--ease-out);
+  
+  &:hover {
+    border-color: var(--color-border-medium);
+    box-shadow: var(--shadow-2xl);
+  }
+`;
+
+const FullWidthCard = styled(Card)`
+  animation: slideInUp var(--duration-slow) var(--ease-out) 0.2s backwards;
 `;
 
 function App() {
-  const [socket, setSocket] = useState(null);
-  const [connected, setConnected] = useState(false);
   const [inferenceRunning, setInferenceRunning] = useState(false);
   const [trustScore, setTrustScore] = useState(50);
   const [alerts, setAlerts] = useState([]);
+  const [sessionStart, setSessionStart] = useState(Date.now());
+  const [uptime, setUptime] = useState(0);
+  const [detectionCount, setDetectionCount] = useState(0);
+  const [scoreHistory, setScoreHistory] = useState([]);
 
-  // Connect to backend
+  // WebSocket connection with auto-reconnect
+  const { connected, reconnecting, reconnectAttempt, emit, on, off, reconnect } = useWebSocket(BACKEND_URL);
+
+  // Calculate statistics
+  const averageTrustScore = useMemo(() => {
+    if (scoreHistory.length === 0) return 50;
+    return scoreHistory.reduce((sum, score) => sum + score, 0) / scoreHistory.length;
+  }, [scoreHistory]);
+
+  const detectionRate = useMemo(() => {
+    if (uptime === 0) return 0;
+    return (detectionCount / uptime) * 60; // per minute
+  }, [detectionCount, uptime]);
+
+  // Update uptime
   useEffect(() => {
-    const newSocket = io(BACKEND_URL);
+    if (!inferenceRunning) return;
     
-    newSocket.on('connect', () => {
-      console.log('Connected to backend');
-      setConnected(true);
-    });
-    
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from backend');
-      setConnected(false);
-      setInferenceRunning(false);
-    });
-    
-    newSocket.on('status', (data) => {
-      console.log('Status:', data);
-    });
-    
-    newSocket.on('trust_score', (data) => {
-      setTrustScore(data.score);
-      
-      // Add alert if deepfake detected
-      if (data.score < 50) {
-        const alert = {
-          id: Date.now(),
-          timestamp: new Date(data.timestamp * 1000),
-          score: data.score,
-          message: 'Deepfake detected!'
-        };
-        setAlerts(prev => [alert, ...prev].slice(0, 10)); // Keep last 10 alerts
-      }
-    });
-    
-    newSocket.on('inference_started', (data) => {
-      console.log('Inference started:', data);
-      setInferenceRunning(true);
-    });
-    
-    newSocket.on('inference_stopped', (data) => {
-      console.log('Inference stopped:', data);
-      setInferenceRunning(false);
-    });
-    
-    newSocket.on('error', (data) => {
-      console.error('Error:', data.message);
-      alert(`Error: ${data.message}`);
-    });
-    
-    setSocket(newSocket);
-    
-    return () => newSocket.close();
+    const interval = setInterval(() => {
+      setUptime(Math.floor((Date.now() - sessionStart) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [inferenceRunning, sessionStart]);
+
+  // Stable handler references — defined with useCallback so the same function
+  // object is passed to both on() and off(), enabling precise deregistration.
+  const handleTrustScore = useCallback((data) => {
+    setTrustScore(data.score);
+    setDetectionCount(prev => prev + 1);
+    setScoreHistory(prev => [...prev, data.score].slice(-100));
+
+    if (data.score < 50) {
+      const newAlert = {
+        id: Date.now(),
+        timestamp: new Date(data.timestamp * 1000),
+        score: data.score,
+        message: data.score < 30 ? 'Critical: Deepfake detected!' : 'Warning: Low trust score'
+      };
+      setAlerts(prev => [newAlert, ...prev].slice(0, 50));
+    }
   }, []);
 
-  const handleStartInference = () => {
-    if (socket && connected) {
-      socket.emit('start_inference');
-    }
-  };
+  const handleInferenceStarted = useCallback(() => {
+    console.log('Inference started');
+    setInferenceRunning(true);
+    setSessionStart(Date.now());
+    setUptime(0);
+    setDetectionCount(0);
+    setScoreHistory([]);
+  }, []);
 
-  const handleStopInference = () => {
-    if (socket && connected) {
-      socket.emit('stop_inference');
-    }
-  };
+  const handleInferenceStopped = useCallback(() => {
+    console.log('Inference stopped');
+    setInferenceRunning(false);
+  }, []);
 
-  const handleClearAlerts = () => {
+  const handleError = useCallback((data) => {
+    console.error('Error:', data.message);
+    alert(`Error: ${data.message}`);
+  }, []);
+
+  // Register WebSocket event handlers ONCE on mount.
+  // Empty dependency array is intentional — handlers are stable useCallback refs
+  // and on/off are also stable. Re-running this effect on every render was the
+  // second driver of the infinite reconnect loop.
+  useEffect(() => {
+    on('trust_score', handleTrustScore);
+    on('inference_started', handleInferenceStarted);
+    on('inference_stopped', handleInferenceStopped);
+    on('error', handleError);
+
+    return () => {
+      off('trust_score', handleTrustScore);
+      off('inference_started', handleInferenceStarted);
+      off('inference_stopped', handleInferenceStopped);
+      off('error', handleError);
+    };
+  }, []); // run once — handlers are stable refs, socket is managed inside useWebSocket
+
+  // Control functions
+  const handleStartInference = useCallback(() => {
+    if (connected && !inferenceRunning) {
+      emit('start_inference');
+    }
+  }, [connected, inferenceRunning, emit]);
+
+  const handleStopInference = useCallback(() => {
+    if (connected && inferenceRunning) {
+      emit('stop_inference');
+    }
+  }, [connected, inferenceRunning, emit]);
+
+  const handleClearAlerts = useCallback(() => {
     setAlerts([]);
-  };
+  }, []);
+
+  const toggleInference = useCallback(() => {
+    if (inferenceRunning) {
+      handleStopInference();
+    } else {
+      handleStartInference();
+    }
+  }, [inferenceRunning, handleStartInference, handleStopInference]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    ' ': toggleInference,
+    'c': handleClearAlerts,
+    'r': reconnect
+  }, connected);
 
   return (
     <AppContainer>
       <Header>
-        <Title>🛡️ DeepGuard</Title>
+        <TitleContainer>
+          <Logo>🛡️</Logo>
+          <Title>DeepGuard</Title>
+        </TitleContainer>
         <Subtitle>Real-time Deepfake Audio Detection</Subtitle>
       </Header>
 
       <Dashboard>
-        <ControlPanel>
-          <StatusIndicator>
-            <StatusDot connected={connected} />
-            {connected ? 'Connected' : 'Disconnected'}
-          </StatusIndicator>
+        <ControlBar>
+          <ConnectionStatus
+            connected={connected}
+            reconnecting={reconnecting}
+            reconnectAttempt={reconnectAttempt}
+            onReconnect={reconnect}
+          />
           
-          <Button 
-            primary 
-            onClick={handleStartInference}
-            disabled={!connected || inferenceRunning}
-          >
-            Start Detection
-          </Button>
-          
-          <Button 
-            onClick={handleStopInference}
-            disabled={!connected || !inferenceRunning}
-          >
-            Stop Detection
-          </Button>
-        </ControlPanel>
+          <Controls>
+            <Button
+              $primary
+              onClick={handleStartInference}
+              disabled={!connected || inferenceRunning}
+            >
+              Start Detection
+              <KeyboardHint>Space</KeyboardHint>
+            </Button>
+            
+            <Button
+              onClick={handleStopInference}
+              disabled={!connected || !inferenceRunning}
+            >
+              Stop Detection
+              <KeyboardHint>Space</KeyboardHint>
+            </Button>
+          </Controls>
+        </ControlBar>
 
-        <Card>
-          <TrustGauge score={trustScore} />
-        </Card>
+        <StatsSection>
+          <StatisticsPanel
+            totalDetections={detectionCount}
+            uptime={uptime}
+            averageTrustScore={averageTrustScore}
+            detectionRate={detectionRate}
+            isRunning={inferenceRunning}
+          />
+        </StatsSection>
 
-        <Card>
-          <AudioVisualizer isActive={inferenceRunning} />
-        </Card>
+        <GridSection>
+          <Card>
+            <TrustGauge score={trustScore} />
+          </Card>
 
-        <Card style={{ gridColumn: '1 / -1' }}>
-          <AlertPanel alerts={alerts} onClear={handleClearAlerts} />
-        </Card>
+          <Card>
+            <AudioVisualizer 
+              isActive={inferenceRunning} 
+              trustScore={trustScore}
+            />
+          </Card>
+        </GridSection>
+
+        <FullWidthCard>
+          <AlertPanel 
+            alerts={alerts} 
+            onClear={handleClearAlerts} 
+          />
+        </FullWidthCard>
       </Dashboard>
     </AppContainer>
   );
