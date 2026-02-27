@@ -27,9 +27,7 @@ wheels/
 backend_engine/data/
 !backend_engine/data/.gitkeep
 
-# Model files
-backend_engine/models/*.pth
-backend_engine/models/*.onnx
+# Model files (tracked in repo)
 !backend_engine/models/.gitkeep
 
 # Node
