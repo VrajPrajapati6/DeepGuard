@@ -2,12 +2,13 @@
   "name": "deepguard-frontend",
   "version": "1.0.0",
   "description": "DeepGuard - Real-time Deepfake Audio Detection Dashboard",
+  "homepage": ".",
   "main": "main.js",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "electron": "electron .",
-    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && ELECTRON_START_URL=http://localhost:3000 electron .\"",
+    "electron-dev": "concurrently \"npm start\" \"wait-on http://localhost:3000 && set ELECTRON_START_URL=http://localhost:3000&& electron .\"",
     "package": "electron-builder"
   },
   "keywords": [

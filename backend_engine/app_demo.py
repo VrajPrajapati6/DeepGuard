@@ -62,8 +62,10 @@ def handle_connect():
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    """Handle client disconnection."""
+    """Handle client disconnection. Stop inference so it doesn't keep running."""
+    global is_running
     print('✗ Client disconnected')
+    is_running = False
 
 
 def demo_inference_loop():

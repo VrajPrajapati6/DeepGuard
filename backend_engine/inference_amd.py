@@ -17,26 +17,20 @@ from collections import deque
 try:
     import pyaudio
 except ImportError:
-    print("Error: PyAudio not installed.")
-    print("Install with: pip install pyaudio")
-    sys.exit(1)
+    raise ImportError("PyAudio not installed. Install with: pip install pyaudio")
 
 # ONNX Runtime with DirectML
 try:
     import onnxruntime as ort
 except ImportError:
-    print("Error: ONNX Runtime not installed.")
-    print("Install with: pip install onnxruntime-directml")
-    sys.exit(1)
+    raise ImportError("ONNX Runtime not installed. Install with: pip install onnxruntime-directml")
 
 # Audio preprocessing (same as training)
 try:
     import librosa
     import scipy.signal
 except ImportError:
-    print("Error: librosa or scipy not installed.")
-    print("Install with: pip install librosa scipy")
-    sys.exit(1)
+    raise ImportError("librosa or scipy not installed. Install with: pip install librosa scipy")
 
 
 class AudioPreprocessor:

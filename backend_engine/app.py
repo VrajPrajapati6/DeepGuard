@@ -23,7 +23,13 @@ except Exception as e:
 
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='threading',
+    logger=False,
+    engineio_logger=False
+)
 
 # Global inference state
 inference_engine = None
@@ -63,12 +69,19 @@ def handle_connect():
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    """Handle client disconnection."""
+    """Handle client disconnection. Stop inference so it doesn't keep running."""
+    global audio_capture, is_running
     print('Client disconnected')
+    if is_running:
+        if audio_capture:
+            audio_capture.stop()
+            audio_capture = None
+        is_running = False
+        print('✓ Inference stopped (client disconnected)')
 
 
 @socketio.on('start_inference')
-def handle_start_inference():
+def handle_start_inference(*args):
     """Start real-time inference."""
     global inference_engine, audio_capture, is_running
     
@@ -82,7 +95,7 @@ def handle_start_inference():
     
     try:
         # Initialize inference engine
-        model_path = os.path.join('models', 'deepguard_amd.onnx')
+        model_path = os.path.join('models', 'deepguard_amd_v2.onnx')
         
         if not os.path.exists(model_path):
             emit('error', {'message': f'Model not found at {model_path}'})
@@ -117,7 +130,7 @@ def handle_start_inference():
 
 
 @socketio.on('stop_inference')
-def handle_stop_inference():
+def handle_stop_inference(*args):
     """Stop real-time inference."""
     global audio_capture, is_running
     
@@ -146,10 +159,10 @@ def main():
     print("DeepGuard Backend Server")
     print("=" * 60)
     print(f"Inference Available: {INFERENCE_AVAILABLE}")
-    print("\nStarting server on http://localhost:5000")
+    print("\nStarting server on http://localhost:5001")
     print("=" * 60)
     
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5001, debug=False)
 
 
 if __name__ == '__main__':
